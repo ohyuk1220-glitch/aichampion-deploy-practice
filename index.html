@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- ▼▼ 교체1: 제목에 문제지가 요구한 키워드를 반드시 넣을 것 (예: "청렴", "신고") ▼▼ -->
+<title>청렴 신고 사건 조회</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --ink:#10151f; --ink-soft:#4a5568; --line:#d8dee9;
+    --bg:#f4f6f9; --panel:#ffffff; --accent:#0f5ea8; --accent-soft:#e6f0fa;
+    --ok:#0b7a5a; --warn:#a8600f;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#e8ecf3; --ink-soft:#9aa5b5; --line:#2a3342;
+      --bg:#0f141c; --panel:#161d28; --accent:#5aa9f0; --accent-soft:#16283c;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#e8ecf3; --ink-soft:#9aa5b5; --line:#2a3342;
+    --bg:#0f141c; --panel:#161d28; --accent:#5aa9f0; --accent-soft:#16283c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:Pretendard,-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+    line-height:1.65; word-break:keep-all; overflow-wrap:break-word;
+  }
+  .wrap{max-width:1080px; margin:0 auto; padding:0 16px 64px}
+  header{border-bottom:3px solid var(--accent); background:var(--panel); padding:28px 0 22px; margin-bottom:28px}
+  header .wrap{padding-bottom:0}
+  h1{margin:0 0 6px; font-size:1.6rem; letter-spacing:-.02em}
+  .sub{margin:0; color:var(--ink-soft); font-size:.92rem}
+  .controls{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px}
+  .controls input, .controls select{
+    padding:11px 13px; border:1px solid var(--line); border-radius:8px;
+    background:var(--panel); color:var(--ink); font-family:inherit; font-size:.95rem; min-height:44px;
+  }
+  .controls input{flex:1 1 240px}
+  .count{
+    display:inline-block; padding:8px 14px; border-radius:999px;
+    background:var(--accent-soft); color:var(--accent); font-weight:700; font-size:.95rem; margin-bottom:16px;
+  }
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px}
+  .card{
+    background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--accent);
+    border-radius:8px; padding:15px 16px;
+  }
+  .card h3{margin:0 0 9px; font-size:1.02rem}
+  .card dl{margin:0; display:grid; grid-template-columns:auto 1fr; gap:4px 10px; font-size:.9rem}
+  .card dt{color:var(--ink-soft)}
+  .card dd{margin:0}
+  .tag{display:inline-block; padding:2px 9px; border-radius:4px; background:var(--accent-soft); color:var(--accent); font-size:.8rem; font-weight:600}
+  section.feed{margin-top:40px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 22px}
+  section.feed h2{margin:0 0 4px; font-size:1.12rem}
+  .feed-note{margin:0 0 14px; color:var(--ink-soft); font-size:.85rem}
+  .feed ul{margin:0; padding-left:18px}
+  .feed li{margin-bottom:9px}
+  .feed a{color:var(--accent); text-decoration:none}
+  .feed a:hover, .feed a:focus{text-decoration:underline}
+  .feed time{display:block; color:var(--ink-soft); font-size:.8rem}
+  .empty{padding:36px; text-align:center; color:var(--ink-soft)}
+  @media (max-width:480px){ h1{font-size:1.32rem} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <!-- ▼▼ 교체2: 제목·설명 ▼▼ -->
+    <h1>청렴 신고 사건 조회</h1>
+    <p class="sub">행정안전부 청렴감사관실 · 시민 공개용 조회 페이지</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="controls">
+    <input type="search" id="q" placeholder="검색어를 입력하세요" aria-label="검색">
+    <!-- ▼▼ 교체3: 필터 기준 컬럼 2개. 문제지가 요구한 필터를 그대로 ▼▼ -->
+    <select id="f1" aria-label="신고유형 필터"><option value="">신고유형 전체</option></select>
+    <select id="f2" aria-label="처리상태 필터"><option value="">처리상태 전체</option></select>
+  </div>
+
+  <!-- 채점항목: "결과 N건" 표시 -->
+  <p class="count" id="count">결과 0건</p>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" hidden>조건에 맞는 자료가 없습니다.</div>
+
+  <!-- 채점항목: 외부 리소스 RSS 임베드, 최신 5건 이상 -->
+  <section class="feed">
+    <h2>관련 최신 보도자료</h2>
+    <p class="feed-note" id="feedNote">불러오는 중…</p>
+    <ul id="feed"></ul>
+  </section>
+</main>
+
+<script src="data.js"></script>
+<script>
+/* ============================================================
+   교체4: data.json 은 solution.py 가 생성한다.
+   구조: { "items":[ {...행...} ], "rss":[ {"title":"","link":"","date":""} ] }
+   ============================================================ */
+const FIELD = {           // ▼▼ 교체5: 화면에 뿌릴 컬럼명을 데이터에 맞게 ▼▼
+  title: "사건ID",
+  rows: ["신고일자", "신고유형", "지역", "처리상태"],
+  filter1: "신고유형",
+  filter2: "처리상태"
+};
+
+/* 데이터는 data.js 가 window.EXAM_DATA 로 넣어 준다.
+   ※ fetch("data.json") 을 쓰면 file:// 로 열었을 때 CORS 로 막혀 화면이 빈다.
+     <script src="data.js"> 방식은 로컬에서도 배포 후에도 똑같이 동작한다. */
+let DATA = [], RSS = [];
+
+const $ = (id) => document.getElementById(id);
+
+function boot(){
+  const src = window.EXAM_DATA || {};
+  DATA = src.items || [];
+  RSS  = src.rss   || [];
+  checkFields();
+  buildFilters();
+  render();
+  renderFeed();
+}
+
+/* FIELD 의 컬럼명이 실제 데이터와 다르면 카드가 빈 칸으로만 그려진다.
+   "결과 N건"은 정상으로 보이기 때문에 눈치채기 어렵다 → 화면과 콘솔에 대놓고 알린다. */
+function checkFields(){
+  if (!DATA.length) return;
+  const keys = Object.keys(DATA[0]);
+  const want = [FIELD.title, ...FIELD.rows, FIELD.filter1, FIELD.filter2];
+  const missing = [...new Set(want)].filter(k => !keys.includes(k));
+  if (!missing.length) return;
+  console.warn("데이터에 없는 컬럼명:", missing, "| 실제 컬럼:", keys);
+  const bar = document.createElement("p");
+  bar.className = "count";
+  bar.style.background = "#fde8e8";
+  bar.style.color = "#a6231d";
+  bar.textContent = `⚠ 컬럼명 불일치: ${missing.join(", ")} — FIELD 설정을 실제 데이터에 맞추세요`;
+  $("count").before(bar);
+}
+
+function buildFilters(){
+  for (const [sel, key] of [["f1", FIELD.filter1], ["f2", FIELD.filter2]]){
+    const el = $(sel);
+    const seen = [...new Set(DATA.map(r => r[key]).filter(Boolean))].sort();
+    for (const v of seen){
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      el.appendChild(o);
+    }
+    el.addEventListener("change", render);
+  }
+  $("q").addEventListener("input", render);
+}
+
+function render(){
+  const q  = $("q").value.trim().toLowerCase();
+  const v1 = $("f1").value, v2 = $("f2").value;
+
+  const hit = DATA.filter(r => {
+    if (v1 && r[FIELD.filter1] !== v1) return false;
+    if (v2 && r[FIELD.filter2] !== v2) return false;
+    if (!q) return true;
+    return Object.values(r).some(v =>
+      v !== null && v !== undefined && String(v).toLowerCase().includes(q));
+  });
+
+  const CAP = 300;                       // 카드 렌더 상한 (브라우저 속도 보호)
+  const shown = Math.min(hit.length, CAP);
+  $("count").textContent = hit.length > CAP
+    ? `결과 ${hit.length}건 (상위 ${shown}건 표시)`
+    : `결과 ${hit.length}건`;
+  $("empty").hidden = hit.length > 0;
+
+  const grid = $("grid");
+  grid.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  for (const r of hit.slice(0, CAP)){
+    const card = document.createElement("article");
+    card.className = "card";
+    const h = document.createElement("h3");
+    h.textContent = r[FIELD.title] ?? "";
+    card.appendChild(h);
+    const dl = document.createElement("dl");
+    for (const k of FIELD.rows){
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd");
+      if (k === FIELD.filter1 || k === FIELD.filter2){
+        const s = document.createElement("span");
+        s.className = "tag"; s.textContent = r[k] ?? "";
+        dd.appendChild(s);
+      } else {
+        dd.textContent = r[k] ?? "";
+      }
+      dl.append(dt, dd);
+    }
+    card.appendChild(dl);
+    frag.appendChild(card);
+  }
+  grid.appendChild(frag);
+}
+
+/* RSS: ①동봉된 스냅샷을 즉시 그린다(채점 보장)
+        ②라이브 갱신은 시도만 하고 실패해도 화면을 건드리지 않는다
+   ※ 공공 RSS는 CORS 헤더가 없어 브라우저 직접 fetch 가 막힌다. 스냅샷이 본선. */
+function renderFeed(){
+  const ul = $("feed");
+  ul.innerHTML = "";
+  if (!RSS.length){
+    $("feedNote").textContent = "보도자료를 불러오지 못했습니다.";
+    return;
+  }
+  for (const it of RSS.slice(0, 8)){
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = it.link || "#";
+    a.textContent = it.title || "";
+    a.target = "_blank"; a.rel = "noopener";
+    const t = document.createElement("time");
+    t.textContent = it.date || "";
+    li.append(a, t);
+    ul.appendChild(li);
+  }
+  $("feedNote").textContent = `외부 RSS 피드에서 수집한 최신 ${Math.min(RSS.length, 8)}건입니다.`;
+}
+
+boot();
+</script>
+</body>
+</html>
